@@ -1,0 +1,156 @@
+#!/bin/sh
+
+config_dir="$HOME/.config/shvmm"
+config_file="$config_dir/config"
+
+firstTimeSetup() {
+	printf "Directory to store VMs: \033[1;95m"
+	read vmdir
+
+	printf "\033[0mISO Directory: \033[1;95m"
+	read isodir
+
+	[ "$vmdir" = "." ] && vmdir="$(pwd)"
+	[ "$isodir" = "." ] && isodir="$(pwd)"
+
+	[ ! -d "$config_dir" ] && mkdir -p $config_dir
+	cat << EOF > $config_file
+#!/bin/sh
+#    _____ __  __                        
+#   / ___// / / /   ______ ___  ____ ___ 
+#   \\__ \\/ /_/ / | / / __ \`__ \\/ __ \`__ \\
+#  ___/ / __  /| |/ / / / / / / / / / / /
+# /____/_/ /_/ |___/_/ /_/ /_/_/ /_/ /_/ 
+# SHvmm Configuration File
+vmdir=$vmdir
+isodir=$isodir
+EOF
+	printf "\033[0m>>> Checking if \033[1;94mqemu\033[0m is installed...\n"
+	qemu="$(whereis qemu-system-x86_64 | awk '{print $2}')"
+	[ -z "$qemu" ] && echo "QEMU is not installed" && exit
+	[ ! -z "$qemu" ] && echo "QEMU is installed"
+}
+
+
+logo() {
+	printf "\033[1;96m"
+	cat << EOF
+   _____ __  __                        
+  / ___// / / /   ______ ___  ____ ___ 
+  \\__ \\/ /_/ / | / / __ \`__ \\/ __ \`__ \\
+ ___/ / __  /| |/ / / / / / / / / / / /
+/____/_/ /_/ |___/_/ /_/ /_/_/ /_/ /_/ 
+EOF
+	printf "\033[0m\n"
+}
+
+mainmenu() {
+	cat << EOF
+Shell Virtual Machine Manager
+=============================
+
+  1 - Create a VM
+  2 - Delete a VM
+  3 - Start a VM
+  4 - Exit
+EOF
+
+	read menuopt
+
+	case $menuopt in
+		"1") createNewVM;;
+		"2") operation="delete" selectVM && deleteVM;;
+		"3") operation="start" selectVM && startVM;;
+		"4") exit;;
+	esac
+}
+
+createNewVM() {
+	printf "VM Name (No Spaces): \033[1;95m"
+	read vmname
+
+	printf "\033[0mHDA (First drive): \033[1;95m"
+	read hda
+
+	printf "\033[0mHDA Size (GB): \033[1;95m"
+	read hda_size
+
+	printf "\033[0mCDROM (ISO Image): \033[1;95m"
+	read cdrom
+
+	printf "\033[0mRAM Size (in MB, 1GB = 1024): \033[1;95m"
+	read ramsize
+
+	printf "\033[0mNo. CPU Cores: \033[1;95m"
+	read cores
+
+	mkdir -p $vmdir/$vmname
+	cat << EOF > $vmdir/$vmname/$vmname.sh
+#!/bin/sh
+#    _____ __  __                        
+#   / ___// / / /   ______ ___  ____ ___ 
+#   \\__ \\/ /_/ / | / / __ \`__ \\/ __ \`__ \\
+#  ___/ / __  /| |/ / / / / / / / / / / /
+# /____/_/ /_/ |___/_/ /_/ /_/_/ /_/ /_/ 
+# SHvmm Virtual Machine File
+
+cpucores=$cores
+hda="$vmdir/$vmname/$hda.qcow2"
+cdrom="$isodir/$cdrom"
+ramsize=$ramsize
+extdevs="-usb -device usb-tablet -device usb-kbd"
+vga="-vga qxl"
+machine="q35"
+accel="kvm"
+
+qemu-system-x86_64 \\
+	-M \$machine,accel=\$accel \\
+	-m ${ramsize}M \\
+	-smp $cores,cores=$cores \\
+	-hda "\$hda" \\
+	-cdrom "\$cdrom" \\
+	\$extdevs \$vga \\
+	-boot c
+EOF
+	printf "\033[0m>>> Creating VM Drives....\n"
+	qemu-img create -f qcow2 "$vmdir/$vmname/$hda.qcow2" ${hda_size}G
+
+	chmod +x $vmdir/$vmname/$vmname.sh
+}
+
+selectVM() {
+	printf "VM to $operation: \033[1;95m"
+	read opervm
+
+	printf "\033[0m"
+	targetVM=$opervm
+}
+
+startVM() {
+
+	[ -z "$targetVM" ] && operation="Start" selectVM
+	printf "Starting VM \033[1;96m$targetVM\033[0m\n"
+
+	sh $vmdir/$targetVM/$targetVM.sh &
+	printf "\n\n"
+}
+
+deleteVM() {
+	[ -z "$targetVM" ] && operation="Delete" selectVM
+	printf "Really delete the VM \033[1;91m$targetVM\033[0m? (Yes) "
+	read confirm
+	
+	[ "$confirm" = "Yes" ] && rm -rf $vmdir/$targetVM || deleteVM
+}
+
+[ ! -f "$config_file" ] && logo && firstTimeSetup
+vmdir="$(grep 'vmdir' $config_file | sed 's/.*=//g')"
+isodir="$(grep 'isodir' $config_file | sed 's/.*=//g')"
+
+case $1 in
+	"setup") logo && firstTimeSetup;;
+	"create") logo && createNewVM;;
+	"start") logo && targetVM="$2" && startVM;;
+	"delete") logo && targetVM="$2" && deleteVM;;
+	*) logo && mainmenu;;
+esac
