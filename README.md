@@ -6,10 +6,10 @@ Like any sensible program, the configuration files are located in `$HOME/.config
 
 ## Usage
 ```bash
-./shvmm --setup
-./shvmm --create
-./shvmm --start [VM Name]
-./shvmm --delete [VM Name]
+./shvmm setup
+./shvmm create
+./shvmm start [VM Name]
+./shvmm delete [VM Name]
 ```
 
 ## License
