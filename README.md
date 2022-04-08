@@ -2,7 +2,7 @@
 SHvmm is a QEMU Virtual Machine Manager written in a purely POSIX Compliant Shell Script.
 
 ## Configuration
-Like any sensible program, the configuration files are located in `$HOME/.config`, and the configuration setup can be run at anytime by running SHvmm with the `--setup` flag
+Like any sensible program, the configuration files are located in `$HOME/.config`, and the configuration setup can be run at anytime by running SHvmm with the `setup` flag
 
 ## Usage
 ```bash
